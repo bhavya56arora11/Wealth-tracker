@@ -1,2 +1,2 @@
-# Fintrack
-Personal Finance Tracker
+# Wealth-Tracker
+Personal Wealth Tracker
