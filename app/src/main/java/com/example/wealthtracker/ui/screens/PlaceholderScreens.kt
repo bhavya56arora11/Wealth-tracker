@@ -16,13 +16,6 @@ fun DashboardScreen() {
 }
 
 @Composable
-fun ExpensesScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = "Expenses Screen", style = MaterialTheme.typography.headlineMedium)
-    }
-}
-
-@Composable
 fun InvestmentsScreen() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text = "Investments Screen", style = MaterialTheme.typography.headlineMedium)
