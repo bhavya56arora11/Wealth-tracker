@@ -35,28 +35,16 @@ fun ExpensesScreen() {
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilterType by remember { mutableStateOf<TransactionType?>(null) }
     var selectedDateRange by remember { mutableStateOf(DateRangeFilter.ALL_TIME) }
-    var showCategoryBreakdown by remember { mutableStateOf(true) }
+    var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     // Dummy Data
     val dummyTransactions = remember {
-        val calendar = Calendar.getInstance()
-        val now = calendar.timeInMillis
-        
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        val todayStart = calendar.timeInMillis
-        
-        calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-        val weekStart = calendar.timeInMillis
-        
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        val monthStart = calendar.timeInMillis
-
+        val now = System.currentTimeMillis()
         listOf(
-            Transaction(amount = 500.0, type = TransactionType.EXPENSE, category = "Food & Dining", merchant = "Starbucks", timestamp = now - 3600000),
-            Transaction(amount = 25000.0, type = TransactionType.INCOME, category = "Salary", merchant = "Tech Corp", timestamp = now - 86400000),
+            Transaction(amount = 500.0, type = TransactionType.EXPENSE, category = "Food & Dining", merchant = "Starbucks", timestamp = now - 3600000, note = "Coffee with friends"),
+            Transaction(amount = 25000.0, type = TransactionType.INCOME, category = "Salary", merchant = "Tech Corp", timestamp = now - 86400000, note = "Monthly paycheck"),
             Transaction(amount = 120.0, type = TransactionType.EXPENSE, category = "Transportation", merchant = "Uber", timestamp = now - 172800000),
-            Transaction(amount = 1500.0, type = TransactionType.EXPENSE, category = "Shopping", merchant = "Amazon", timestamp = now - 259200000),
-            Transaction(amount = 450.0, type = TransactionType.EXPENSE, category = "Food & Dining", merchant = "Pizza Hut", timestamp = now),
+            Transaction(amount = 1500.0, type = TransactionType.EXPENSE, category = "Shopping", merchant = "Amazon", timestamp = now - 259200000, note = "New headphones"),
             Transaction(amount = 3000.0, type = TransactionType.EXPENSE, category = "Bills & Utilities", merchant = "Electricity Bill", timestamp = now - 10 * 86400000),
             Transaction(amount = 200.0, type = TransactionType.INCOME, category = "Gifts/Bonuses", merchant = "Friend", timestamp = now - 432000000)
         )
@@ -68,23 +56,22 @@ fun ExpensesScreen() {
         val matchesType = selectedFilterType == null || it.type == selectedFilterType
         
         val calendar = Calendar.getInstance()
-        val now = calendar.timeInMillis
+        val transactionTime = it.timestamp
         val matchesDate = when (selectedDateRange) {
             DateRangeFilter.TODAY -> {
-                calendar.timeInMillis = now
+                calendar.timeInMillis = System.currentTimeMillis()
                 calendar.set(Calendar.HOUR_OF_DAY, 0)
-                calendar.set(Calendar.MINUTE, 0)
-                it.timestamp >= calendar.timeInMillis
+                transactionTime >= calendar.timeInMillis
             }
             DateRangeFilter.THIS_WEEK -> {
-                calendar.timeInMillis = now
+                calendar.timeInMillis = System.currentTimeMillis()
                 calendar.set(Calendar.DAY_OF_WEEK, calendar.firstDayOfWeek)
-                it.timestamp >= calendar.timeInMillis
+                transactionTime >= calendar.timeInMillis
             }
             DateRangeFilter.THIS_MONTH -> {
-                calendar.timeInMillis = now
+                calendar.timeInMillis = System.currentTimeMillis()
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
-                it.timestamp >= calendar.timeInMillis
+                transactionTime >= calendar.timeInMillis
             }
             DateRangeFilter.ALL_TIME -> true
         }
@@ -97,15 +84,13 @@ fun ExpensesScreen() {
     val netSavings = totalIncome - totalExpense
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Summary Cards
         SummaryCards(totalIncome, totalExpense, netSavings)
 
-        // Filters Section
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search merchant or category") },
+                placeholder = { Text("Search transactions") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -114,7 +99,6 @@ fun ExpensesScreen() {
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Type and Date Filters
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
                     FilterChip(
@@ -137,105 +121,113 @@ fun ExpensesScreen() {
                         label = { Text("Income") }
                     )
                 }
-                item { VerticalDivider(modifier = Modifier.height(32.dp).padding(vertical = 4.dp)) }
+                item { 
+                    VerticalDivider(modifier = Modifier.height(32.dp).padding(vertical = 4.dp)) 
+                }
                 DateRangeFilter.values().forEach { range ->
                     item {
                         FilterChip(
                             selected = selectedDateRange == range,
                             onClick = { selectedDateRange = range },
-                            label = { Text(range.name.replace("_", " ").lowercase().capitalize()) }
+                            label = { Text(range.name.replace("_", " ").lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }) }
                         )
                     }
                 }
             }
         }
 
-        // Category Breakdown (Visual representation of distribution)
-        if (selectedFilterType != TransactionType.INCOME) {
-            val categorySpending = filteredTransactions
-                .filter { it.type == TransactionType.EXPENSE }
-                .groupBy { it.category }
-                .mapValues { it.value.sumOf { t -> t.amount } }
-                .toList()
-                .sortedByDescending { it.second }
-
-            if (categorySpending.isNotEmpty()) {
-                Text(
-                    "Category Distribution",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-                    color = MaterialTheme.colorScheme.primary
-                )
-                LazyRow(
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(categorySpending) { (category, amount) ->
-                        CategorySpendingCard(category, amount, (amount / totalExpense).toFloat())
-                    }
-                }
-            }
-        }
-
-        // Transaction List
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("${filteredTransactions.size} found", style = MaterialTheme.typography.bodySmall)
-        }
+        Text(
+            "Transactions", 
+            style = MaterialTheme.typography.titleMedium, 
+            modifier = Modifier.padding(16.dp),
+            fontWeight = FontWeight.Bold
+        )
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 80.dp), // Space for FAB
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            contentPadding = PaddingValues(bottom = 80.dp)
         ) {
             items(filteredTransactions.sortedByDescending { it.timestamp }) { transaction ->
-                TransactionListItem(transaction)
+                TransactionListItem(transaction, onClick = { selectedTransaction = transaction })
             }
         }
+    }
+
+    // Transaction Detail Dialog
+    selectedTransaction?.let { transaction ->
+        AlertDialog(
+            onDismissRequest = { selectedTransaction = null },
+            title = { Text(transaction.merchant ?: transaction.category) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DetailRow("Amount", "₹${String.format("%.2f", transaction.amount)}", if (transaction.type == TransactionType.EXPENSE) Color.Red else Color.Green)
+                    DetailRow("Category", transaction.category)
+                    DetailRow("Date", SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(transaction.timestamp)))
+                    if (transaction.note != null) {
+                        DetailRow("Note", transaction.note)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedTransaction = null }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }
 
 @Composable
-fun CategorySpendingCard(category: String, amount: Double, percentage: Float) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-        shape = RoundedCornerShape(12.dp)
+fun SummaryCards(income: Double, expense: Double, savings: Double) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(category, style = MaterialTheme.typography.labelSmall)
-            Text("₹${String.format("%.0f", amount)}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(4.dp))
-            LinearProgressIndicator(
-                progress = percentage,
-                modifier = Modifier.width(60.dp).height(4.dp).clip(CircleShape),
-                color = MaterialTheme.colorScheme.primary
+        SummaryCard("Income", income, Color(0xFF4CAF50), Modifier.weight(1f))
+        SummaryCard("Expense", expense, Color(0xFFF44336), Modifier.weight(1f))
+        SummaryCard("Savings", savings, MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+    }
+}
+
+@Composable
+fun SummaryCard(label: String, amount: Double, color: Color, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(text = label, style = MaterialTheme.typography.labelMedium, color = color)
+            Text(
+                text = "₹${String.format("%.0f", amount)}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
             )
         }
     }
 }
 
 @Composable
-fun TransactionListItem(transaction: Transaction) {
+fun DetailRow(label: String, value: String, color: Color = MaterialTheme.colorScheme.onSurface) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = color)
+    }
+}
+
+@Composable
+fun TransactionListItem(transaction: Transaction, onClick: () -> Unit) {
     val dateStr = SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(transaction.timestamp))
     
     ListItem(
-        headlineContent = { 
-            Text(
-                transaction.merchant ?: transaction.category,
-                fontWeight = FontWeight.Medium
-            ) 
-        },
-        supportingContent = { 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(transaction.category, style = MaterialTheme.typography.bodySmall)
-                Text(" • ", style = MaterialTheme.typography.bodySmall)
-                Text(dateStr, style = MaterialTheme.typography.bodySmall)
-            }
-        },
+        headlineContent = { Text(transaction.merchant ?: transaction.category, fontWeight = FontWeight.Medium) },
+        supportingContent = { Text("${transaction.category} • $dateStr", style = MaterialTheme.typography.bodySmall) },
         trailingContent = {
             Text(
                 text = "${if (transaction.type == TransactionType.EXPENSE) "-" else "+"} ₹${String.format("%.2f", transaction.amount)}",
@@ -258,15 +250,10 @@ fun TransactionListItem(transaction: Transaction) {
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        icon, 
-                        contentDescription = null, 
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Icon(icon, null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                 }
             }
         },
-        modifier = Modifier.clickable { /* Detail View */ }
+        modifier = Modifier.clickable(onClick = onClick)
     )
 }

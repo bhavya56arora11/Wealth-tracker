@@ -1,11 +1,18 @@
 package com.example.wealthtracker.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -22,7 +29,13 @@ fun AddTransactionScreen(onNavigateBack: () -> Unit) {
     var merchant by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     
+    // Shared Expense State
+    var isShared by remember { mutableStateOf(false) }
+    var numPeople by remember { mutableStateOf("2") }
+    var paidByYou by remember { mutableStateOf(true) }
+
     val categories = if (selectedType == TransactionType.EXPENSE) expenseCategories else incomeCategories
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
@@ -40,7 +53,8 @@ fun AddTransactionScreen(onNavigateBack: () -> Unit) {
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
-                .fillMaxSize(),
+                .fillMaxSize()
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Amount Field
@@ -49,7 +63,8 @@ fun AddTransactionScreen(onNavigateBack: () -> Unit) {
                 onValueChange = { amount = it },
                 label = { Text("Amount") },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                prefix = { Text("₹") }
             )
 
             // Type Selection
@@ -72,17 +87,17 @@ fun AddTransactionScreen(onNavigateBack: () -> Unit) {
                 )
             }
 
-            // Category Selection (Simple implementation for MVP)
+            // Category Selection - Scrollable Chips
             Text("Category", style = MaterialTheme.typography.titleMedium)
-            ScrollableTabRow(
-                selectedTabIndex = categories.indexOf(selectedCategory).coerceAtLeast(0),
-                edgePadding = 0.dp
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                categories.forEach { category ->
-                    Tab(
+                items(categories) { category ->
+                    FilterChip(
                         selected = selectedCategory == category,
                         onClick = { selectedCategory = category },
-                        text = { Text(category) }
+                        label = { Text(category) }
                     )
                 }
             }
@@ -91,8 +106,52 @@ fun AddTransactionScreen(onNavigateBack: () -> Unit) {
                 value = merchant,
                 onValueChange = { merchant = it },
                 label = { Text("Merchant / Vendor (Optional)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
+
+            // Shared Expense Toggle
+            if (selectedType == TransactionType.EXPENSE) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Shared Expense", style = MaterialTheme.typography.titleMedium)
+                            Switch(checked = isShared, onCheckedChange = { isShared = it })
+                        }
+                        
+                        AnimatedVisibility(visible = isShared) {
+                            Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedTextField(
+                                    value = numPeople,
+                                    onValueChange = { numPeople = it },
+                                    label = { Text("Number of People") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                                
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = paidByYou, onCheckedChange = { paidByYou = it })
+                                    Text("Paid by you")
+                                }
+                                
+                                val perPerson = try { amount.toDouble() / numPeople.toInt() } catch(e: Exception) { 0.0 }
+                                Text(
+                                    "Each person owes: ₹${String.format("%.2f", perPerson)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = note,
@@ -105,9 +164,10 @@ fun AddTransactionScreen(onNavigateBack: () -> Unit) {
             Button(
                 onClick = { /* TODO: Save to DB */ onNavigateBack() },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = amount.isNotEmpty() && selectedCategory.isNotEmpty()
+                enabled = amount.isNotEmpty() && selectedCategory.isNotEmpty(),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Save Transaction")
+                Text("Save Transaction", modifier = Modifier.padding(8.dp))
             }
         }
     }

@@ -20,6 +20,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     // Sub-screens
     object AddTransaction : Screen("add_transaction", "Add Transaction")
     object AddInvestment : Screen("add_investment", "Add Investment")
+    object AddReminder : Screen("add_reminder", "Add Reminder")
 }
 
 val bottomNavItems = listOf(

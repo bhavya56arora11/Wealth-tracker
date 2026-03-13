@@ -28,7 +28,8 @@ fun MainScreen() {
             // Hide bottom bar on "Add" screens
             val hideBottomBar = currentDestination?.route in listOf(
                 Screen.AddTransaction.route,
-                Screen.AddInvestment.route
+                Screen.AddInvestment.route,
+                Screen.AddReminder.route
             )
             
             if (!hideBottomBar) {
@@ -64,6 +65,11 @@ fun MainScreen() {
                         Icon(Icons.Default.Add, contentDescription = "Add Investment")
                     }
                 }
+                Screen.Reminders.route -> {
+                    FloatingActionButton(onClick = { navController.navigate(Screen.AddReminder.route) }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Reminder")
+                    }
+                }
             }
         }
     ) { innerPadding ->
@@ -84,6 +90,9 @@ fun MainScreen() {
             }
             composable(Screen.AddInvestment.route) {
                 AddInvestmentScreen(onNavigateBack = { navController.popBackStack() })
+            }
+            composable(Screen.AddReminder.route) {
+                AddReminderScreen(onNavigateBack = { navController.popBackStack() })
             }
         }
     }
