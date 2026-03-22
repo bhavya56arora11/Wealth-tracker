@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -14,55 +15,69 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.wealthtracker.data.model.Investment
 import com.example.wealthtracker.data.model.InvestmentType
+import com.example.wealthtracker.ui.viewmodel.WealthViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InvestmentsScreen() {
-    var isDemoMode by remember { mutableStateOf(false) }
+fun InvestmentsScreen(viewModel: WealthViewModel) {
     var lastUpdate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var investmentToEdit by remember { mutableStateOf<Investment?>(null) }
+    var investmentToDelete by remember { mutableStateOf<Investment?>(null) }
 
-    // Real-ish data for prototype
-    val realInvestments = remember { mutableStateListOf<Investment>() }
-    
-    // Demo data
-    val demoInvestments = listOf(
-        Investment(name = "HDFC Flexi Cap Fund", type = InvestmentType.MUTUAL_FUND, units = 120.5, purchasePrice = 1250.0, currentNav = 1380.5, fundCode = "101234"),
-        Investment(name = "Apple Inc.", type = InvestmentType.STOCK, units = 10.0, purchasePrice = 175.0, currentNav = 192.3),
-        Investment(name = "ICICI Prudential Bluechip", type = InvestmentType.SIP, units = 500.0, purchasePrice = 85.0, currentNav = 92.4, fundCode = "102567"),
-        Investment(name = "Bitcoin", type = InvestmentType.STOCK, units = 0.05, purchasePrice = 45000.0, currentNav = 62000.0)
-    )
-
-    val currentList = if (isDemoMode) demoInvestments else realInvestments
+    val currentList = viewModel.investments
 
     val totalInvested = currentList.sumOf { it.units * it.purchasePrice }
     val currentValue = currentList.sumOf { it.units * (it.currentNav ?: it.purchasePrice) }
     val totalGain = currentValue - totalInvested
     val gainPercentage = if (totalInvested > 0) (totalGain / totalInvested) * 100 else 0.0
 
+    // ── Edit Dialog ──────────────────────────────────────────────────────────
+    investmentToEdit?.let { inv ->
+        EditInvestmentDialog(
+            investment = inv,
+            onDismiss = { investmentToEdit = null },
+            onConfirm = { updated ->
+                viewModel.updateInvestment(updated)
+                investmentToEdit = null
+            }
+        )
+    }
+
+    // ── Delete Confirm Dialog ────────────────────────────────────────────────
+    investmentToDelete?.let { inv ->
+        AlertDialog(
+            onDismissRequest = { investmentToDelete = null },
+            title = { Text("Delete Investment") },
+            text = { Text("Remove \"${inv.name}\" from your portfolio?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteInvestment(inv.id)
+                        investmentToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { investmentToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Investment Portfolio") },
                 actions = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Demo", style = MaterialTheme.typography.labelSmall)
-                        Switch(
-                            checked = isDemoMode,
-                            onCheckedChange = { isDemoMode = it },
-                            modifier = Modifier.scale(0.7f)
-                        )
-                    }
-                    IconButton(onClick = { 
-                        lastUpdate = System.currentTimeMillis()
-                    }) {
+                    IconButton(onClick = { lastUpdate = System.currentTimeMillis() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh NAV")
                     }
                 }
@@ -70,21 +85,6 @@ fun InvestmentsScreen() {
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            
-            if (isDemoMode) {
-                Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "Demo Mode Enabled - Showing Sample Portfolio",
-                        modifier = Modifier.padding(8.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                }
-            }
-
             InvestmentSummaryCard(currentValue, totalInvested, totalGain, gainPercentage, lastUpdate)
 
             if (currentList.isEmpty()) {
@@ -93,7 +93,7 @@ fun InvestmentsScreen() {
                         Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("No investments yet", style = MaterialTheme.typography.titleMedium)
-                        Text("Enable Demo Mode to see a sample", style = MaterialTheme.typography.bodySmall)
+                        Text("Add your first investment to get started", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             } else {
@@ -102,8 +102,12 @@ fun InvestmentsScreen() {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(currentList) { investment ->
-                        InvestmentItem(investment)
+                    items(currentList, key = { it.id }) { investment ->
+                        InvestmentItem(
+                            investment = investment,
+                            onEdit = { investmentToEdit = investment },
+                            onDelete = { investmentToDelete = investment }
+                        )
                     }
                 }
             }
@@ -111,14 +115,80 @@ fun InvestmentsScreen() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditInvestmentDialog(
+    investment: Investment,
+    onDismiss: () -> Unit,
+    onConfirm: (Investment) -> Unit
+) {
+    var name by remember { mutableStateOf(investment.name) }
+    var units by remember { mutableStateOf(investment.units.toString()) }
+    var currentNav by remember { mutableStateOf(investment.currentNav?.toString() ?: "") }
+
+    var nameError by remember { mutableStateOf(false) }
+    var unitsError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Investment") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = { Text("Name") },
+                    isError = nameError,
+                    supportingText = if (nameError) {{ Text("Name cannot be empty") }} else null,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = units,
+                    onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) { units = it; unitsError = false } },
+                    label = { Text("Units") },
+                    isError = unitsError,
+                    supportingText = if (unitsError) {{ Text("Enter a valid number") }} else null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = currentNav,
+                    onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) currentNav = it },
+                    label = { Text("Current NAV / Price (Optional)") },
+                    prefix = { Text("₹") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                nameError = name.isBlank()
+                unitsError = units.toDoubleOrNull() == null
+                if (!nameError && !unitsError) {
+                    onConfirm(investment.copy(
+                        name = name.trim(),
+                        units = units.toDouble(),
+                        currentNav = currentNav.toDoubleOrNull()
+                    ))
+                }
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
 @Composable
 fun InvestmentSummaryCard(current: Double, invested: Double, gain: Double, percentage: Double, lastUpdate: Long) {
     val dateStr = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(lastUpdate))
-    
+
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
@@ -132,9 +202,9 @@ fun InvestmentSummaryCard(current: Double, invested: Double, gain: Double, perce
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text("Invested Amount", style = MaterialTheme.typography.labelMedium)
@@ -164,7 +234,7 @@ fun InvestmentSummaryCard(current: Double, invested: Double, gain: Double, perce
 }
 
 @Composable
-fun InvestmentItem(investment: Investment) {
+fun InvestmentItem(investment: Investment, onEdit: () -> Unit, onDelete: () -> Unit) {
     var showDetails by remember { mutableStateOf(false) }
     val investedValue = investment.units * investment.purchasePrice
     val currentValue = investment.units * (investment.currentNav ?: investment.purchasePrice)
@@ -201,7 +271,7 @@ fun InvestmentItem(investment: Investment) {
                         Text("${investment.units} units", style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                
+
                 Column(horizontalAlignment = Alignment.End) {
                     Text("₹${String.format(Locale.getDefault(), "%.2f", currentValue)}", fontWeight = FontWeight.Bold)
                     Text(
@@ -211,7 +281,7 @@ fun InvestmentItem(investment: Investment) {
                     )
                 }
             }
-            
+
             AnimatedVisibility(visible = showDetails) {
                 Column(modifier = Modifier.padding(top = 16.dp)) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp)
@@ -223,8 +293,11 @@ fun InvestmentItem(investment: Investment) {
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { /* Edit */ }) { Text("Edit") }
-                        TextButton(onClick = { /* Delete */ }, colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)) { Text("Delete") }
+                        TextButton(onClick = onEdit) { Text("Edit") }
+                        TextButton(
+                            onClick = onDelete,
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) { Text("Delete") }
                     }
                 }
             }

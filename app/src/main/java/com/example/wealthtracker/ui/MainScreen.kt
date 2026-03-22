@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -16,16 +17,19 @@ import androidx.navigation.compose.rememberNavController
 import com.example.wealthtracker.ui.navigation.Screen
 import com.example.wealthtracker.ui.navigation.bottomNavItems
 import com.example.wealthtracker.ui.screens.*
+import com.example.wealthtracker.ui.viewmodel.WealthViewModel
 
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    
+    // Instantiate ViewModel here
+    val viewModel: WealthViewModel = viewModel()
 
     Scaffold(
         bottomBar = {
-            // Hide bottom bar on "Add" screens
             val hideBottomBar = currentDestination?.route in listOf(
                 Screen.AddTransaction.route,
                 Screen.AddInvestment.route,
@@ -55,7 +59,7 @@ fun MainScreen() {
         },
         floatingActionButton = {
             when (currentDestination?.route) {
-                Screen.Expenses.route, Screen.Dashboard.route -> {
+                Screen.Expenses.route -> {
                     FloatingActionButton(onClick = { navController.navigate(Screen.AddTransaction.route) }) {
                         Icon(Icons.Default.Add, contentDescription = "Add Transaction")
                     }
@@ -78,21 +82,20 @@ fun MainScreen() {
             startDestination = Screen.Dashboard.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Dashboard.route) { DashboardScreen() }
-            composable(Screen.Expenses.route) { ExpensesScreen() }
-            composable(Screen.Investments.route) { InvestmentsScreen() }
-            composable(Screen.Shared.route) { SharedExpensesScreen() }
-            composable(Screen.Reminders.route) { RemindersScreen() }
-            composable(Screen.Analysis.route) { AnalysisScreen() }
+            composable(Screen.Dashboard.route) { DashboardScreen(viewModel) }
+            composable(Screen.Expenses.route) { ExpensesScreen(viewModel) }
+            composable(Screen.Investments.route) { InvestmentsScreen(viewModel) }
+            composable(Screen.Shared.route) { SharedExpensesScreen(viewModel) }
+            composable(Screen.Reminders.route) { RemindersScreen(viewModel) }
             
             composable(Screen.AddTransaction.route) { 
-                AddTransactionScreen(onNavigateBack = { navController.popBackStack() }) 
+                AddTransactionScreen(viewModel, onNavigateBack = { navController.popBackStack() }) 
             }
             composable(Screen.AddInvestment.route) {
-                AddInvestmentScreen(onNavigateBack = { navController.popBackStack() })
+                AddInvestmentScreen(viewModel, onNavigateBack = { navController.popBackStack() })
             }
             composable(Screen.AddReminder.route) {
-                AddReminderScreen(onNavigateBack = { navController.popBackStack() })
+                AddReminderScreen(viewModel, onNavigateBack = { navController.popBackStack() })
             }
         }
     }
