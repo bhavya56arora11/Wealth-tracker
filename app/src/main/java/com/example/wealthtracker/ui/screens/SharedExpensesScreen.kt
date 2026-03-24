@@ -178,7 +178,7 @@ fun OverallBalanceSummary(totalOwed: Double, totalYouOwe: Double, netOverall: Do
 }
 
 @Composable
-fun PersonBalanceCard(
+private fun PersonBalanceCard(
     balance: PersonBalance, splits: List<ExpenseSplit>, sharedExpenses: List<SharedExpense>,
     onSettle: (String) -> Unit, modifier: Modifier = Modifier
 ) {

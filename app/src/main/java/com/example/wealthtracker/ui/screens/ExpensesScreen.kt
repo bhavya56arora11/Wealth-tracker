@@ -204,8 +204,8 @@ fun ExpandableTransactionCard(transaction: Transaction, onDelete: () -> Unit) {
                     HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp), thickness = 0.5.dp)
                     TxDetailRow("Date",     dateStr)
                     TxDetailRow("Type",     if (isExpense) "Expense" else "Income")
-                    if (transaction.merchant != null) TxDetailRow("Merchant", transaction.merchant)
-                    if (transaction.note     != null) TxDetailRow("Note",     transaction.note)
+                    transaction.merchant?.let { TxDetailRow("Merchant", it) }
+                    transaction.note?.let { TxDetailRow("Note", it) }
                     if (transaction.isShared)         TxDetailRow("Shared",   "Yes – split with others")
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

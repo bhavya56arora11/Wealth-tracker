@@ -31,9 +31,6 @@ fun AddTransactionScreen(viewModel: WealthViewModel, onNavigateBack: () -> Unit)
     var merchant by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
 
-    // Shared Expense State
-    var isShared by remember { mutableStateOf(false) }
-    var numPeople by remember { mutableStateOf("2") }
 
     // Validation
     var amountError by remember { mutableStateOf(false) }
@@ -130,42 +127,7 @@ fun AddTransactionScreen(viewModel: WealthViewModel, onNavigateBack: () -> Unit)
                 }
             }
 
-            if (selectedType == TransactionType.EXPENSE) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Shared Expense", style = MaterialTheme.typography.titleMedium)
-                            Switch(checked = isShared, onCheckedChange = { isShared = it })
-                        }
-                        
-                        AnimatedVisibility(visible = isShared) {
-                            Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                OutlinedTextField(
-                                    value = numPeople,
-                                    onValueChange = { if (it.all { c -> c.isDigit() }) numPeople = it },
-                                    label = { Text("Number of People") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                                )
-                                
-                                val perPerson = try { amount.toDouble() / numPeople.toInt() } catch(e: Exception) { 0.0 }
-                                Text(
-                                    "Each person owes: ₹${String.format(Locale.getDefault(), "%.2f", perPerson)}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+
 
             OutlinedTextField(
                 value = note,
@@ -182,27 +144,13 @@ fun AddTransactionScreen(viewModel: WealthViewModel, onNavigateBack: () -> Unit)
                     if (amountError || categoryError) return@Button
 
                     val amtValue = amount.toDouble()
-                    if (isShared && selectedType == TransactionType.EXPENSE) {
-                        val peopleCount = numPeople.toIntOrNull() ?: 2
-                        val sharedId = UUID.randomUUID().toString()
-                        val splits = mutableListOf<ExpenseSplit>()
-                        val splitAmt = amtValue / peopleCount
-                        for (i in 1 until peopleCount) {
-                            splits.add(ExpenseSplit(sharedExpenseId = sharedId, personName = "Person $i", amount = splitAmt))
-                        }
-                        viewModel.addSharedExpense(
-                            SharedExpense(id = sharedId, totalAmount = amtValue, description = merchant.ifEmpty { selectedCategory }, paidBy = "You"),
-                            splits
-                        )
-                    } else {
-                        viewModel.addTransaction(Transaction(
-                            amount = amtValue,
-                            type = selectedType,
-                            category = selectedCategory,
-                            merchant = merchant.ifEmpty { null },
-                            note = note.ifEmpty { null }
-                        ))
-                    }
+                    viewModel.addTransaction(Transaction(
+                        amount = amtValue,
+                        type = selectedType,
+                        category = selectedCategory,
+                        merchant = merchant.ifEmpty { null },
+                        note = note.ifEmpty { null }
+                    ))
                     onNavigateBack()
                 },
                 modifier = Modifier.fillMaxWidth(),

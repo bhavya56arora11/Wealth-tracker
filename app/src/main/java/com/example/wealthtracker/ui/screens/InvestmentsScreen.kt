@@ -288,8 +288,8 @@ fun InvestmentItem(investment: Investment, onEdit: () -> Unit, onDelete: () -> U
                     InvestmentDetailRow("Purchase Price", "₹${String.format(Locale.getDefault(), "%.2f", investment.purchasePrice)}")
                     InvestmentDetailRow("Current NAV", "₹${String.format(Locale.getDefault(), "%.2f", investment.currentNav ?: 0.0)}")
                     InvestmentDetailRow("Invested Value", "₹${String.format(Locale.getDefault(), "%.2f", investedValue)}")
-                    if (investment.fundCode != null) {
-                        InvestmentDetailRow("Fund Code", investment.fundCode)
+                    investment.fundCode?.let {
+                        InvestmentDetailRow("Fund Code", it)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

@@ -3,15 +3,15 @@ package com.example.wealthtracker.data.model
 import java.util.UUID
 
 data class Investment(
-    val id: String = UUID.randomUUID().toString(),
-    val name: String,
-    val type: InvestmentType,
-    val units: Double,
-    val purchasePrice: Double,
-    val purchaseDate: Long = System.currentTimeMillis(),
-    val currentNav: Double? = null,
-    val fundCode: String? = null,
-    val lastUpdated: Long = System.currentTimeMillis()
+    var id: String = UUID.randomUUID().toString(),
+    var name: String = "",
+    var type: InvestmentType = InvestmentType.STOCK,
+    var units: Double = 0.0,
+    var purchasePrice: Double = 0.0,
+    var purchaseDate: Long = System.currentTimeMillis(),
+    var currentNav: Double? = null,
+    var fundCode: String? = null,
+    var lastUpdated: Long = System.currentTimeMillis()
 )
 
 enum class InvestmentType {

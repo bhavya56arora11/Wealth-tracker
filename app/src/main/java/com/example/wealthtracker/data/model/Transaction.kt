@@ -3,15 +3,15 @@ package com.example.wealthtracker.data.model
 import java.util.UUID
 
 data class Transaction(
-    val id: String = UUID.randomUUID().toString(),
-    val amount: Double,
-    val type: TransactionType,
-    val category: String,
-    val merchant: String? = null,
-    val note: String? = null,
-    val timestamp: Long = System.currentTimeMillis(),
-    val isShared: Boolean = false,
-    val sharedExpenseId: String? = null
+    var id: String = UUID.randomUUID().toString(),
+    var amount: Double = 0.0,
+    var type: TransactionType = TransactionType.EXPENSE,
+    var category: String = "",
+    var merchant: String? = null,
+    var note: String? = null,
+    var timestamp: Long = System.currentTimeMillis(),
+    var isShared: Boolean = false,
+    var sharedExpenseId: String? = null
 )
 
 enum class TransactionType {
