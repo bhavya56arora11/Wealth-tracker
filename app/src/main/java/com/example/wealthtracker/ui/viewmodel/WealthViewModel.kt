@@ -90,13 +90,17 @@ class WealthViewModel : ViewModel() {
         
         investments.add(Investment(name = "HDFC Flexi Cap", type = InvestmentType.MUTUAL_FUND, units = 100.0, purchasePrice = 1200.0, currentNav = 1350.0))
         
-        val sharedId = UUID.randomUUID().toString()
-        val sharedExp = SharedExpense(id = sharedId, totalAmount = 1200.0, description = "Dinner Split", paidBy = "You")
-        sharedExpenses.add(sharedExp)
-        expenseSplits.addAll(listOf(
-            ExpenseSplit(sharedExpenseId = sharedId, personName = "Rahul", amount = 400.0),
-            ExpenseSplit(sharedExpenseId = sharedId, personName = "Amit", amount = 400.0)
-        ))
+        // Bidirectional Splitwise demo (all names stored lowercase)
+        val id1 = UUID.randomUUID().toString()
+        val id2 = UUID.randomUUID().toString()
+        val id3 = UUID.randomUUID().toString()
+        sharedExpenses.add(SharedExpense(id = id1, totalAmount = 400.0, description = "Dinner at Barbeque Nation", paidBy = "you"))
+        expenseSplits.add(ExpenseSplit(sharedExpenseId = id1, personName = "rahul", amount = 400.0))
+        sharedExpenses.add(SharedExpense(id = id2, totalAmount = 300.0, description = "Grocery run", paidBy = "amit"))
+        expenseSplits.add(ExpenseSplit(sharedExpenseId = id2, personName = "amit", amount = 300.0))
+        sharedExpenses.add(SharedExpense(id = id3, totalAmount = 250.0, description = "Movie tickets", paidBy = "you"))
+        expenseSplits.add(ExpenseSplit(sharedExpenseId = id3, personName = "priya", amount = 250.0))
+
         
         reminders.add(Reminder(title = "Netflix", type = ReminderType.SUBSCRIPTION, amount = 499.0, frequency = ReminderFrequency.MONTHLY, nextDueDate = now + 86400000))
     }
