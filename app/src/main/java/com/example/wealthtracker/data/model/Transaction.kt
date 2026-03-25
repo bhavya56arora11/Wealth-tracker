@@ -29,6 +29,7 @@ val expenseCategories = listOf(
     "Travel",
     "Groceries",
     "Personal Care",
+    "Investment",
     "Miscellaneous"
 )
 

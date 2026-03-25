@@ -143,6 +143,7 @@ fun ExpandableTransactionCard(transaction: Transaction, onDelete: () -> Unit) {
         "Food & Dining"  -> Icons.Default.Restaurant
         "Transportation" -> Icons.Default.DirectionsCar
         "Shopping"       -> Icons.Default.ShoppingBag
+        "Investment"     -> Icons.Default.TrendingUp
         else             -> Icons.Default.Category
     }
 

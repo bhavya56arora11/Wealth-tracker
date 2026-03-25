@@ -107,19 +107,20 @@ class WealthViewModel : ViewModel() {
             val additionalUnits = reminder.amount / linkedInvestment.purchasePrice
             val newUnits = linkedInvestment.units + additionalUnits
             repository.updateInvestment(linkedInvestment.copy(units = newUnits))
-        } else if (reminder.type != ReminderType.SIP) {
-            val transactionId = java.util.UUID.randomUUID().toString()
-            val transaction = Transaction(
-                id = transactionId,
-                amount = reminder.amount,
-                type = TransactionType.EXPENSE,
-                category = "Subscription",
-                merchant = reminder.title,
-                note = reminder.notes,
-                timestamp = System.currentTimeMillis()
-            )
-            repository.addTransaction(transaction)
         }
+
+        val transactionCategory = if (reminder.type == ReminderType.SIP) "Investment" else "Subscription"
+        val transactionId = java.util.UUID.randomUUID().toString()
+        val transaction = Transaction(
+            id = transactionId,
+            amount = reminder.amount,
+            type = TransactionType.EXPENSE,
+            category = transactionCategory,
+            merchant = reminder.title,
+            note = reminder.notes,
+            timestamp = System.currentTimeMillis()
+        )
+        repository.addTransaction(transaction)
         return null
     }
 
