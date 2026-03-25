@@ -13,6 +13,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.AnimatedVisibility
+import com.example.wealthtracker.data.model.Investment
+import com.example.wealthtracker.data.model.InvestmentType
 import com.example.wealthtracker.data.model.Reminder
 import com.example.wealthtracker.data.model.ReminderFrequency
 import com.example.wealthtracker.data.model.ReminderType
@@ -29,11 +32,17 @@ fun AddReminderScreen(viewModel: WealthViewModel, onNavigateBack: () -> Unit) {
     var selectedFrequency by remember { mutableStateOf(ReminderFrequency.MONTHLY) }
     var notes by remember { mutableStateOf("") }
 
-    // DatePicker state
+    // Investment specific fields
+    var invType by remember { mutableStateOf(InvestmentType.STOCK) }
+    var invUnits by remember { mutableStateOf("") }
+    var invPrice by remember { mutableStateOf("") }
+    var invFundCode by remember { mutableStateOf("") }
+    var invUnitsError by remember { mutableStateOf(false) }
+    var invPriceError by remember { mutableStateOf(false) }
+
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis() + 86400000L)
 
-    // Validation error states
     var titleError by remember { mutableStateOf(false) }
     var amountError by remember { mutableStateOf(false) }
     var dateError by remember { mutableStateOf(false) }
@@ -45,7 +54,6 @@ fun AddReminderScreen(viewModel: WealthViewModel, onNavigateBack: () -> Unit) {
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(it))
     } ?: "Select a date"
 
-    // ── DatePicker Dialog ────────────────────────────────────────────────────
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -101,16 +109,60 @@ fun AddReminderScreen(viewModel: WealthViewModel, onNavigateBack: () -> Unit) {
                 }
             }
 
-            OutlinedTextField(
-                value = amount,
-                onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) { amount = it; amountError = false } },
-                label = { Text("Amount") },
-                isError = amountError,
-                supportingText = if (amountError) {{ Text("Enter a valid amount") }} else null,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                prefix = { Text("₹") }
-            )
+            AnimatedVisibility(visible = selectedType != ReminderType.SIP) {
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) { amount = it; amountError = false } },
+                    label = { Text("Amount") },
+                    isError = amountError,
+                    supportingText = if (amountError) {{ Text("Enter a valid amount") }} else null,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    prefix = { Text("₹") }
+                )
+            }
+
+            AnimatedVisibility(visible = selectedType == ReminderType.SIP) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("Investment Details", style = MaterialTheme.typography.titleMedium)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        InvestmentType.entries.forEach { type ->
+                            FilterChip(
+                                selected = invType == type,
+                                onClick = { invType = type },
+                                label = { Text(type.name.replace("_", " "), style = MaterialTheme.typography.labelSmall) }
+                            )
+                        }
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = invUnits,
+                            onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) { invUnits = it; invUnitsError = false } },
+                            label = { Text("Units") },
+                            isError = invUnitsError,
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                        )
+                        OutlinedTextField(
+                            value = invPrice,
+                            onValueChange = { if (it.all { c -> c.isDigit() || c == '.' }) { invPrice = it; invPriceError = false } },
+                            label = { Text("Price/Unit") },
+                            isError = invPriceError,
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            prefix = { Text("₹") }
+                        )
+                    }
+                    if (invType != InvestmentType.STOCK) {
+                        OutlinedTextField(
+                            value = invFundCode,
+                            onValueChange = { invFundCode = it },
+                            label = { Text("Fund Code (Optional)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
 
             Text("Frequency", style = MaterialTheme.typography.titleMedium)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -153,19 +205,53 @@ fun AddReminderScreen(viewModel: WealthViewModel, onNavigateBack: () -> Unit) {
             Button(
                 onClick = {
                     titleError = title.isBlank()
-                    amountError = amount.toDoubleOrNull() == null || amount.isBlank()
                     dateError = selectedDateMillis == null
 
-                    if (!titleError && !amountError && !dateError) {
-                        viewModel.addReminder(Reminder(
-                            title = title.trim(),
-                            type = selectedType,
-                            amount = amount.toDouble(),
-                            frequency = selectedFrequency,
-                            nextDueDate = selectedDateMillis!!,
-                            notes = notes.ifEmpty { null }
-                        ))
-                        onNavigateBack()
+                    if (selectedType == ReminderType.SIP) {
+                        invUnitsError = invUnits.toDoubleOrNull() == null
+                        invPriceError = invPrice.toDoubleOrNull() == null
+                        amountError = false 
+
+                        if (!titleError && !invUnitsError && !invPriceError && !dateError) {
+                            val genId = java.util.UUID.randomUUID().toString()
+                            val u = invUnits.toDouble()
+                            val p = invPrice.toDouble()
+                            val totalAmount = u * p
+
+                            val reminder = Reminder(
+                                id = genId,
+                                title = title.trim(),
+                                type = ReminderType.SIP,
+                                amount = totalAmount,
+                                frequency = selectedFrequency,
+                                nextDueDate = selectedDateMillis!!,
+                                notes = notes.ifEmpty { null }
+                            )
+                            val investment = Investment(
+                                id = genId,
+                                name = title.trim(),
+                                type = invType,
+                                units = u,
+                                purchasePrice = p,
+                                fundCode = invFundCode.ifEmpty { null }
+                            )
+                            viewModel.addInvestment(investment, reminder)
+                            onNavigateBack()
+                        }
+                    } else {
+                        amountError = amount.toDoubleOrNull() == null || amount.isBlank()
+                        
+                        if (!titleError && !amountError && !dateError) {
+                            viewModel.addReminder(Reminder(
+                                title = title.trim(),
+                                type = selectedType,
+                                amount = amount.toDouble(),
+                                frequency = selectedFrequency,
+                                nextDueDate = selectedDateMillis!!,
+                                notes = notes.ifEmpty { null }
+                            ))
+                            onNavigateBack()
+                        }
                     }
                 },
                 modifier = Modifier

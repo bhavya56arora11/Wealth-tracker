@@ -36,6 +36,15 @@ class WealthRepository {
         db.collection("transactions").document(id).delete()
     }
 
+    fun addInvestmentWithReminder(investment: Investment, reminder: Reminder?) {
+        val batch = db.batch()
+        batch.set(db.collection("investments").document(investment.id), investment)
+        if (reminder != null) {
+            batch.set(db.collection("reminders").document(reminder.id), reminder)
+        }
+        batch.commit()
+    }
+
     // Investments
     fun getInvestments(): Flow<List<Investment>> = callbackFlow {
         val listener = db.collection("investments")
@@ -62,6 +71,7 @@ class WealthRepository {
 
     fun deleteInvestment(id: String) {
         db.collection("investments").document(id).delete()
+        db.collection("reminders").document(id).delete()
     }
 
     // Reminders
@@ -90,6 +100,7 @@ class WealthRepository {
 
     fun deleteReminder(id: String) {
         db.collection("reminders").document(id).delete()
+        db.collection("investments").document(id).delete()
     }
 
     // Shared Expenses

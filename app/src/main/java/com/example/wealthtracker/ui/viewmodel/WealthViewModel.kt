@@ -55,8 +55,8 @@ class WealthViewModel : ViewModel() {
         repository.addTransaction(transaction)
     }
 
-    fun addInvestment(investment: Investment) {
-        repository.addInvestment(investment)
+    fun addInvestment(investment: Investment, reminder: Reminder? = null) {
+        repository.addInvestmentWithReminder(investment, reminder)
     }
 
     fun addSharedExpense(expense: SharedExpense, splits: List<ExpenseSplit>) {
@@ -83,8 +83,16 @@ class WealthViewModel : ViewModel() {
         repository.deleteReminder(id)
     }
 
-    fun markReminderDone(id: String) {
-        val reminder = reminders.find { it.id == id } ?: return
+    fun markReminderDone(id: String): String? {
+        val reminder = reminders.find { it.id == id } ?: return null
+
+        val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+        val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        val savings = totalIncome - totalExpense
+        
+        if (savings < reminder.amount) {
+            return "Insufficient savings! Have ₹${String.format(java.util.Locale.getDefault(), "%.0f", savings)} but need ₹${String.format(java.util.Locale.getDefault(), "%.0f", reminder.amount)}."
+        }
         
         val calendar = java.util.Calendar.getInstance().apply { timeInMillis = reminder.nextDueDate }
         when (reminder.frequency) {
@@ -93,6 +101,26 @@ class WealthViewModel : ViewModel() {
             ReminderFrequency.YEARLY -> calendar.add(java.util.Calendar.YEAR, 1)
         }
         repository.updateReminder(reminder.copy(nextDueDate = calendar.timeInMillis))
+
+        val linkedInvestment = investments.find { it.id == id }
+        if (linkedInvestment != null && reminder.type == ReminderType.SIP && linkedInvestment.purchasePrice > 0.0) {
+            val additionalUnits = reminder.amount / linkedInvestment.purchasePrice
+            val newUnits = linkedInvestment.units + additionalUnits
+            repository.updateInvestment(linkedInvestment.copy(units = newUnits))
+        } else if (reminder.type != ReminderType.SIP) {
+            val transactionId = java.util.UUID.randomUUID().toString()
+            val transaction = Transaction(
+                id = transactionId,
+                amount = reminder.amount,
+                type = TransactionType.EXPENSE,
+                category = "Subscription",
+                merchant = reminder.title,
+                note = reminder.notes,
+                timestamp = System.currentTimeMillis()
+            )
+            repository.addTransaction(transaction)
+        }
+        return null
     }
 
     fun settleSplit(splitId: String) {

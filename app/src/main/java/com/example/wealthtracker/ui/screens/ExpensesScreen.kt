@@ -37,7 +37,6 @@ fun ExpensesScreen(viewModel: WealthViewModel) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilterType by remember { mutableStateOf<TransactionType?>(null) }
     var selectedDateRange by remember { mutableStateOf(DateRangeFilter.ALL_TIME) }
-    var showChart by remember { mutableStateOf(false) }
 
     val allTransactions = viewModel.transactions
 
@@ -92,14 +91,6 @@ fun ExpensesScreen(viewModel: WealthViewModel) {
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("Search transactions") },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
-                    trailingIcon = {
-                        IconButton(onClick = { showChart = !showChart }) {
-                            Icon(
-                                if (showChart) Icons.AutoMirrored.Filled.List else Icons.Default.PieChart,
-                                contentDescription = "Toggle View"
-                            )
-                        }
-                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
@@ -112,14 +103,11 @@ fun ExpensesScreen(viewModel: WealthViewModel) {
                 }
             }
 
-            if (showChart) {
-                CategoryPieChart(filteredTransactions.filter { it.type == TransactionType.EXPENSE })
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                     if (filteredTransactions.isEmpty()) {
                         item {
                             Box(
@@ -141,7 +129,6 @@ fun ExpensesScreen(viewModel: WealthViewModel) {
                         )
                     }
                 }
-            }
         }
     }
 }

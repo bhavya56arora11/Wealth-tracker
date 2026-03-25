@@ -32,6 +32,18 @@ fun RemindersScreen(viewModel: WealthViewModel) {
 
     // Confirmation dialog state
     var reminderToDelete by remember { mutableStateOf<Reminder?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    errorMessage?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { errorMessage = null },
+            title = { Text("Transaction Blocked", color = MaterialTheme.colorScheme.error) },
+            text = { Text(msg) },
+            confirmButton = {
+                TextButton(onClick = { errorMessage = null }) { Text("OK") }
+            }
+        )
+    }
 
     reminderToDelete?.let { reminder ->
         AlertDialog(
@@ -69,7 +81,10 @@ fun RemindersScreen(viewModel: WealthViewModel) {
                     items(activeReminders, key = { it.id }) { reminder ->
                         ReminderItem(
                             reminder = reminder,
-                            onMarkDone = { viewModel.markReminderDone(reminder.id) },
+                            onMarkDone = { 
+                                val error = viewModel.markReminderDone(reminder.id)
+                                if (error != null) errorMessage = error
+                            },
                             onDelete = { reminderToDelete = reminder }
                         )
                     }
